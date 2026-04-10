@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WatchTogether — Private Cinema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #080808;
+    --surf:    #111111;
+    --surf2:   #181818;
+    --border:  rgba(255,255,255,0.07);
+    --red:     #c0392b;
+    --red2:    #e74c3c;
+    --text:    #f0ebe0;
+    --muted:   #666;
+    --subtle:  rgba(255,255,255,0.04);
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    width: 700px; height: 700px;
+    background: radial-gradient(circle, rgba(192,57,43,0.07) 0%, transparent 65%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap { position: relative; z-index: 1; width: 100%; max-width: 400px; padding: 0 24px; }
+  .brand { text-align: center; margin-bottom: 48px; animation: up 0.7s ease both; }
+  .logo-ring {
+    width: 56px; height: 56px; margin: 0 auto 18px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .logo-ring::before {
+    content: '';
+    position: absolute; inset: 6px;
+    border-radius: 50%;
+    background: rgba(192,57,43,0.15);
+  }
+  .logo-ring svg { width: 22px; height: 22px; position: relative; z-index: 1; }
+  .brand h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px; font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .brand p { font-size: 13px; color: var(--muted); margin-top: 6px; font-weight: 300; letter-spacing: 0.4px; }
+
+  .card {
+    background: var(--surf);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 10px;
+    animation: up 0.7s ease both;
+  }
+  .card:nth-child(2) { animation-delay: 0.08s; }
+  .card-lbl { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 14px; }
+
+  .btn-create {
+    width: 100%; padding: 13px;
+    background: var(--red); color: #fff;
+    border: none; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-create:hover  { background: var(--red2); }
+  .btn-create:active { transform: scale(0.98); }
+  .btn-create svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 2; }
+
+  .join-row { display: flex; gap: 8px; }
+  .code-inp {
+    flex: 1;
+    background: var(--surf2);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px; color: var(--text);
+    outline: none;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: border-color 0.15s;
+  }
+  .code-inp::placeholder { letter-spacing: 1px; text-transform: none; color: var(--muted); font-size: 13px; }
+  .code-inp:focus { border-color: rgba(255,255,255,0.16); }
+  .btn-join {
+    padding: 12px 18px;
+    background: var(--subtle);
+    color: var(--text);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    transition: background 0.15s, transform 0.1s; white-space: nowrap;
+  }
+  .btn-join:hover  { background: rgba(255,255,255,0.08); }
+  .btn-join:active { transform: scale(0.98); }
+
+  .err { font-size: 12px; color: #e74c3c; margin-top: 8px; min-height: 16px; }
+
+  .feats {
+    display: flex; justify-content: center; gap: 28px;
+    margin-top: 36px;
+    animation: up 0.7s 0.18s ease both;
+  }
+  .feat { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #444; font-size: 11px; }
+  .feat svg { width: 17px; height: 17px; stroke: #3a3a3a; fill: none; stroke-width: 1.5; }
+
+  @keyframes up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="logo-ring">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2.2">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+    </div>
+    <h1>WatchTogether</h1>
+    <p>Your private cinema, anywhere in the world</p>
+  </div>
+
+  <div class="card">
+    <div class="card-lbl">Start a new room</div>
+    <button class="btn-create" id="btnCreate">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      Create room
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-lbl">Have a code?</div>
+    <div class="join-row">
+      <input class="code-inp" id="codeInp" maxlength="6" placeholder="Enter 6-char code" autocomplete="off" spellcheck="false">
+      <button class="btn-join" id="btnJoin">Join →</button>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="feats">
+    <div class="feat">
+      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
+      Screen share
+    </div>
+    <div class="feat">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Stream files
+    </div>
+    <div class="feat">
+      <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      Facecam
+    </div>
+    <div class="feat">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Live chat
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+
+document.getElementById('btnCreate').addEventListener('click', () => {
+  document.getElementById('btnCreate').innerHTML = '<span class="spinner"></span>';
+  socket.emit('create-room');
+});
+
+document.getElementById('btnJoin').addEventListener('click', joinRoom);
+document.getElementById('codeInp').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+
+function joinRoom() {
+  const code = document.getElementById('codeInp').value.trim();
+  if (!code || code.length < 6) { showErr('Enter a 6-character room code.'); return; }
+  document.getElementById('btnJoin').textContent = '...';
+  socket.emit('join-room', code);
+}
+
+socket.on('room-created', code => {
+  sessionStorage.setItem('wt_role', 'host');
+  sessionStorage.setItem('wt_room', code);
+  window.location.href = `/room?id=${code}`;
+});
+
+socket.on('room-joined', code => {
+  sessionStorage.setItem('wt_role', 'guest');
+  sessionStorage.setItem('wt_room', code);
+  window.location.href = `/room?id=${code}`;
+});
+
+socket.on('join-error', msg => {
+  document.getElementById('btnJoin').textContent = 'Join →';
+  showErr(msg);
+});
+
+function showErr(msg) {
+  const el = document.getElementById('err');
+  el.textContent = msg;
+  setTimeout(() => { el.textContent = ''; }, 4000);
+}
+</script>
+</body>
+</html>

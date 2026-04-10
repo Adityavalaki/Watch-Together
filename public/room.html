@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WatchTogether</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #080808;
+    --surf:     #0f0f0f;
+    --surf2:    #161616;
+    --surf3:    #1c1c1c;
+    --border:   rgba(255,255,255,0.07);
+    --border2:  rgba(255,255,255,0.12);
+    --red:      #c0392b;
+    --red2:     #e74c3c;
+    --text:     #f0ebe0;
+    --text2:    #909090;
+    --text3:    #505050;
+    --green:    #27ae60;
+  }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    display: grid;
+    grid-template-rows: 52px 1fr 72px;
+    grid-template-columns: 1fr 300px;
+    height: 100vh;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px;
+    background: var(--surf);
+    border-bottom: 0.5px solid var(--border);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .logo { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+  .room-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surf2);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 13px; font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    transition: border-color 0.15s;
+    user-select: none;
+  }
+  .room-badge:hover { border-color: var(--border2); }
+  .room-badge .code { color: var(--text); letter-spacing: 1px; font-family: monospace; font-size: 14px; }
+  .room-badge svg { width: 12px; height: 12px; stroke: var(--text3); fill: none; stroke-width: 2; }
+  .conn-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 4px 12px;
+    border-radius: 99px;
+    background: rgba(39,174,96,0.1);
+    color: #27ae60;
+    border: 0.5px solid rgba(39,174,96,0.2);
+    transition: all 0.3s;
+  }
+  .conn-pill.waiting { background: rgba(243,156,18,0.1); color: #f39c12; border-color: rgba(243,156,18,0.2); }
+  .conn-pill.disconnected { background: rgba(231,76,60,0.1); color: #e74c3c; border-color: rgba(231,76,60,0.2); }
+  .conn-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .conn-pill.connected .dot { animation: pulse 1.6s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  /* ── MAIN VIDEO AREA ── */
+  .video-area {
+    grid-row: 2;
+    grid-column: 1;
+    background: #000;
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #mainVideo {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    display: none;
+  }
+  .idle-state {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    text-align: center;
+  }
+  .idle-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .idle-icon svg { width: 28px; height: 28px; stroke: #333; fill: none; stroke-width: 1.5; }
+  .idle-state h3 { font-size: 16px; font-weight: 400; color: #333; }
+  .idle-state p  { font-size: 13px; color: #222; max-width: 260px; line-height: 1.5; }
+
+  /* Facecam tray */
+  .cams {
+    position: absolute;
+    bottom: 16px; right: 16px;
+    display: flex; gap: 8px;
+    z-index: 10;
+  }
+  .cam-box {
+    width: 120px; height: 90px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1.5px solid rgba(255,255,255,0.1);
+    background: #111;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .cam-box.active { border-color: var(--red); }
+  .cam-box video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .cam-box .cam-label {
+    position: absolute; bottom: 5px; left: 7px;
+    font-size: 10px; color: #fff;
+    background: rgba(0,0,0,0.65);
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .cam-placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cam-placeholder svg { width: 24px; height: 24px; stroke: #333; fill: none; stroke-width: 1.5; }
+
+  /* Sync indicator */
+  .sync-bar {
+    position: absolute; top: 12px; left: 12px;
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(0,0,0,0.7);
+    border: 0.5px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 11px; color: #888;
+    z-index: 10;
+    display: none;
+  }
+  .sync-bar .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+  /* File progress */
+  .file-progress {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 10px 16px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    display: none;
+    z-index: 10;
+  }
+  .progress-info { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; color: #aaa; }
+  .progress-track { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+  .progress-fill  { height: 100%; background: var(--red); border-radius: 2px; width: 0%; transition: width 0.3s; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    grid-row: 2 / 4;
+    grid-column: 2;
+    display: flex; flex-direction: column;
+    background: var(--surf);
+    border-left: 0.5px solid var(--border);
+  }
+  .sidebar-tabs {
+    display: flex;
+    border-bottom: 0.5px solid var(--border);
+    flex-shrink: 0;
+  }
+  .stab {
+    flex: 1; padding: 12px;
+    text-align: center; font-size: 12px;
+    color: var(--text2); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .stab.active { color: var(--text); border-bottom-color: var(--red); font-weight: 500; }
+
+  .tab-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .tab-panel.active { display: flex; }
+
+  /* Chat */
+  .chat-msgs {
+    flex: 1; overflow-y: auto; padding: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    scrollbar-width: thin; scrollbar-color: #222 transparent;
+  }
+  .chat-msgs::-webkit-scrollbar { width: 3px; }
+  .chat-msgs::-webkit-scrollbar-track { background: transparent; }
+  .chat-msgs::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+
+  .msg { display: flex; flex-direction: column; gap: 2px; }
+  .msg.mine { align-items: flex-end; }
+  .msg-name { font-size: 10px; color: var(--text3); margin: 0 4px; }
+  .msg-bubble {
+    max-width: 210px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 13px; line-height: 1.45;
+    background: var(--surf2);
+    color: var(--text);
+    border: 0.5px solid var(--border);
+  }
+  .msg.mine .msg-bubble { background: var(--red); color: #fff; border-color: transparent; }
+  .msg-time { font-size: 10px; color: var(--text3); margin: 0 4px; }
+  .sys-msg {
+    text-align: center; font-size: 11px; color: var(--text3);
+    background: var(--surf2);
+    padding: 3px 10px; border-radius: 99px; align-self: center;
+  }
+
+  .chat-footer {
+    padding: 10px;
+    border-top: 0.5px solid var(--border);
+    display: flex; gap: 8px; align-items: center;
+  }
+  .chat-inp {
+    flex: 1;
+    background: var(--surf2);
+    border: 0.5px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: var(--text); outline: none;
+    transition: border-color 0.15s;
+  }
+  .chat-inp:focus { border-color: var(--border2); }
+  .chat-inp::placeholder { color: var(--text3); }
+  .send-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--red); border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.15s, transform 0.1s; flex-shrink: 0;
+  }
+  .send-btn:hover  { background: var(--red2); }
+  .send-btn:active { transform: scale(0.92); }
+  .send-btn svg { width: 14px; height: 14px; stroke: #fff; fill: none; stroke-width: 2.5; margin-left: 1px; }
+
+  /* Info panel */
+  .info-panel { padding: 16px; overflow-y: auto; }
+  .info-section { margin-bottom: 20px; }
+  .info-lbl { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+  .peer-card {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: var(--surf2);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+  .peer-av {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500;
+  }
+  .peer-av.you  { background: rgba(192,57,43,0.2); color: var(--red2); }
+  .peer-av.them { background: rgba(255,255,255,0.06); color: var(--text2); }
+  .peer-info { flex: 1; }
+  .peer-name  { font-size: 13px; font-weight: 500; }
+  .peer-role  { font-size: 11px; color: var(--text3); }
+  .peer-status { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .peer-status.off { background: var(--text3); }
+
+  .shortcut-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; font-size: 12px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text2);
+  }
+  .shortcut-key {
+    background: var(--surf2); border: 0.5px solid var(--border);
+    padding: 2px 7px; border-radius: 5px; font-size: 11px; color: var(--text3);
+    font-family: monospace;
+  }
+
+  /* ── BOTTOM CONTROLS ── */
+  .controls {
+    grid-row: 3; grid-column: 1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    background: var(--surf);
+    border-top: 0.5px solid var(--border);
+  }
+  .ctrl-group { display: flex; align-items: center; gap: 8px; }
+  .ctrl-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 8px 14px;
+    background: transparent; border: 0.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text2); cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px; letter-spacing: 0.3px;
+  }
+  .ctrl-btn:hover  { background: var(--surf2); border-color: var(--border2); color: var(--text); }
+  .ctrl-btn:active { transform: scale(0.95); }
+  .ctrl-btn.on     { background: var(--surf2); border-color: var(--red); color: var(--text); }
+  .ctrl-btn.on svg { stroke: var(--red); }
+  .ctrl-btn svg    { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .ctrl-btn.danger { border-color: rgba(231,76,60,0.3); color: #e74c3c; }
+  .ctrl-btn.danger:hover { background: rgba(231,76,60,0.1); border-color: var(--red2); }
+  .ctrl-btn.danger svg { stroke: #e74c3c; }
+
+  .file-input { display: none; }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--surf2); border: 0.5px solid var(--border2);
+    padding: 9px 18px; border-radius: 99px;
+    font-size: 13px; color: var(--text2);
+    opacity: 0; transition: opacity 0.2s, transform 0.2s;
+    z-index: 100; pointer-events: none; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Overlay */
+  #overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay-card {
+    background: var(--surf);
+    border: 0.5px solid var(--border2);
+    border-radius: 20px; padding: 36px;
+    text-align: center; max-width: 340px; width: 100%;
+  }
+  .overlay-icon { font-size: 40px; margin-bottom: 16px; }
+  .overlay-card h2 { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 8px; }
+  .overlay-card p  { font-size: 14px; color: var(--text2); line-height: 1.5; margin-bottom: 24px; }
+  .share-code {
+    background: var(--surf2);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    font-family: monospace;
+    font-size: 28px;
+    letter-spacing: 6px;
+    color: var(--text);
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: border-color 0.15s;
+  }
+  .share-code:hover { border-color: var(--border2); }
+  .share-hint { font-size: 12px; color: var(--text3); }
+  .btn-dismiss {
+    margin-top: 18px;
+    padding: 10px 28px;
+    background: var(--red); color: #fff;
+    border: none; border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-dismiss:hover { background: var(--red2); }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo"><span class="logo-dot"></span>WatchTogether</div>
+    <div class="room-badge" onclick="copyCode()" title="Click to copy">
+      Room: <span class="code" id="roomCode">---</span>
+      <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    </div>
+  </div>
+  <div class="conn-pill waiting" id="connPill">
+    <span class="dot"></span>
+    <span id="connText">Waiting for partner</span>
+  </div>
+</header>
+
+<!-- MAIN VIDEO -->
+<main class="video-area" id="videoArea">
+  <video id="mainVideo" autoplay playsinline></video>
+
+  <div class="idle-state" id="idleState">
+    <div class="idle-icon">
+      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
+    </div>
+    <h3>Nothing playing yet</h3>
+    <p>Share your screen or stream a local video file to start watching together</p>
+  </div>
+
+  <!-- Facecams -->
+  <div class="cams">
+    <div class="cam-box" id="myCamBox">
+      <div class="cam-placeholder" id="myCamPlaceholder">
+        <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      </div>
+      <video id="myCam" autoplay muted playsinline style="display:none"></video>
+      <span class="cam-label">You</span>
+    </div>
+    <div class="cam-box" id="remCamBox">
+      <div class="cam-placeholder" id="remCamPlaceholder">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <video id="remCam" autoplay playsinline style="display:none"></video>
+      <span class="cam-label" id="remCamLabel">Partner</span>
+    </div>
+  </div>
+
+  <div class="sync-bar" id="syncBar">
+    <span class="sync-dot"></span> Synced
+  </div>
+
+  <div class="file-progress" id="fileProgress">
+    <div class="progress-info">
+      <span id="progressLabel">Streaming...</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+</main>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-tabs">
+    <div class="stab active" onclick="switchTab('chat')">Chat</div>
+    <div class="stab"        onclick="switchTab('info')">Room info</div>
+  </div>
+
+  <div class="tab-panel active" id="tab-chat">
+    <div class="chat-msgs" id="chatMsgs">
+      <div class="sys-msg">Room ready — share your code</div>
+    </div>
+    <div class="chat-footer">
+      <input class="chat-inp" id="chatInp" placeholder="Message..." autocomplete="off">
+      <button class="send-btn" onclick="sendChat()">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-info">
+    <div class="info-panel">
+      <div class="info-section">
+        <div class="info-lbl">Participants</div>
+        <div class="peer-card">
+          <div class="peer-av you" id="myAvatar">A</div>
+          <div class="peer-info">
+            <div class="peer-name">You</div>
+            <div class="peer-role" id="myRole">Host</div>
+          </div>
+          <div class="peer-status"></div>
+        </div>
+        <div class="peer-card">
+          <div class="peer-av them">P</div>
+          <div class="peer-info">
+            <div class="peer-name">Partner</div>
+            <div class="peer-role" id="partnerStatus">Not connected</div>
+          </div>
+          <div class="peer-status off" id="partnerDot"></div>
+        </div>
+      </div>
+      <div class="info-section">
+        <div class="info-lbl">Shortcuts</div>
+        <div class="shortcut-row">Screen share <span class="shortcut-key">S</span></div>
+        <div class="shortcut-row">Toggle cam <span class="shortcut-key">C</span></div>
+        <div class="shortcut-row">Toggle mic <span class="shortcut-key">M</span></div>
+        <div class="shortcut-row">Play / Pause <span class="shortcut-key">Space</span></div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- BOTTOM CONTROLS -->
+<footer class="controls">
+  <div class="ctrl-group">
+    <button class="ctrl-btn" id="btnScreen" onclick="toggleScreen()" title="(S)">
+      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
+      Screen
+    </button>
+    <button class="ctrl-btn" id="btnFile" onclick="document.getElementById('fileInp').click()" title="Stream file">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Stream file
+    </button>
+    <input type="file" id="fileInp" class="file-input" accept="video/mp4,video/webm,video/*" onchange="handleFileSelect(this)">
+  </div>
+
+  <div class="ctrl-group">
+    <button class="ctrl-btn" id="btnCam" onclick="toggleCam()" title="(C)">
+      <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      Cam
+    </button>
+    <button class="ctrl-btn" id="btnMic" onclick="toggleMic()" title="(M)">
+      <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      Mic
+    </button>
+  </div>
+
+  <div class="ctrl-group">
+    <button class="ctrl-btn danger" onclick="leaveRoom()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Leave
+    </button>
+  </div>
+</footer>
+
+<!-- Overlay: waiting for partner -->
+<div id="overlay">
+  <div class="overlay-card">
+    <div class="overlay-icon">🎬</div>
+    <h2>Room created</h2>
+    <p>Share this code with your partner so they can join your private cinema.</p>
+    <div class="share-code" id="shareCode" onclick="copyCode()" title="Click to copy">---</div>
+    <div class="share-hint">Click the code to copy it</div>
+    <button class="btn-dismiss" onclick="dismissOverlay()">Got it, I'll wait</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
