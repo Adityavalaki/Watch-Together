@@ -64,26 +64,32 @@ io.on('connection', (socket) => {
   let roomCode = null;
   let myRole   = null;
 
-  socket.on('create-room', () => {
-    // If this socket already has a room, reuse it
-    if (roomCode && rooms.has(roomCode)) {
-      socket.emit('room-created', roomCode);
-      return;
+    socket.on('create-room', () => {
+    // Check if there's already a room with a dead host socket
+    for (const [code, room] of rooms.entries()) {
+      const hostAlive = room.host && io.sockets.sockets.get(room.host)?.connected;
+      if (!hostAlive && myRole === null) {
+        // This might be the host reconnecting — update socket ID
+        room.host = socket.id;
+        roomCode  = code;
+        myRole    = 'host';
+        socket.join(code);
+        socket.emit('room-created', code);
+        console.log(`[~] Host reconnected to room ${code}`);
+        return;
+      }
     }
-    let code = genCode();
-    while (rooms.has(code)) code = genCode();
-    rooms.set(code, {
-      host:      socket.id,
-      guest:     null,
-      createdAt: Date.now()
-    });
-    roomCode = code;
-    myRole   = 'host';
-    socket.join(code);
-    socket.emit('room-created', code);
-    console.log(`[+] Room ${code} created by ${socket.id}`);
-  });
 
+  // Fresh room
+  let code = genCode();
+  while (rooms.has(code)) code = genCode();
+  rooms.set(code, { host: socket.id, guest: null, createdAt: Date.now() });
+  roomCode = code;
+  myRole   = 'host';
+  socket.join(code);
+  socket.emit('room-created', code);
+  console.log(`[+] Room ${code} created`);
+});
   socket.on('join-room', (code) => {
     const c    = (code || '').toUpperCase().trim();
     const room = rooms.get(c);
