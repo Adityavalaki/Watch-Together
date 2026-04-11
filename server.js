@@ -93,10 +93,16 @@ io.on('connection', (socket) => {
       return;
     }
     // Allow rejoin if same socket or guest slot is free
-    if (room.guest && room.guest !== socket.id) {
-      socket.emit('join-error', 'Room is already full.');
-      return;
-    }
+  if (room.guest && room.guest !== socket.id) {
+  // Check if the existing guest socket is still connected
+  const existingSocket = io.sockets.sockets.get(room.guest);
+  if (existingSocket && existingSocket.connected) {
+    socket.emit('join-error', 'Room is already full.');
+    return;
+  }
+  // Old socket is dead — allow takeover
+  room.guest = null;
+}
 
     room.guest = socket.id;
     roomCode   = c;
@@ -108,20 +114,30 @@ io.on('connection', (socket) => {
   });
 
   socket.on('rejoin-room', (code) => {
-    const c    = (code || '').toUpperCase().trim();
-    const room = rooms.get(c);
-    if (!room) { socket.emit('join-error', 'Session expired. Create a new room.'); return; }
+  const c    = (code || '').toUpperCase().trim();
+  const room = rooms.get(c);
+  if (!room) { socket.emit('join-error', 'Session expired. Create a new room.'); return; }
 
-    // Re-seat this socket in the room
-    if (room.host === null) room.host = socket.id;
-    else if (room.guest === null) room.guest = socket.id;
+  // Check which slot this socket should take
+  const hostAlive  = room.host  && io.sockets.sockets.get(room.host)?.connected;
+  const guestAlive = room.guest && io.sockets.sockets.get(room.guest)?.connected;
 
-    roomCode = c;
-    socket.join(c);
-    socket.emit('room-rejoined', c);
-    socket.to(c).emit('peer-reconnected');
-    console.log(`[~] ${socket.id} rejoined room ${c}`);
-  });
+  if (!hostAlive)  room.host  = null;
+  if (!guestAlive) room.guest = null;
+
+  if (!room.host)       { room.host  = socket.id; myRole = 'host'; }
+  else if (!room.guest) { room.guest = socket.id; myRole = 'guest'; }
+  else {
+    socket.emit('join-error', 'Room is already full.');
+    return;
+  }
+
+  roomCode = c;
+  socket.join(c);
+  socket.emit('room-rejoined', c);
+  socket.to(c).emit('peer-reconnected');
+  console.log(`[~] ${socket.id} rejoined room ${c} as ${myRole}`);
+});
 
   // Pure relay
   socket.on('offer',  (d) => { if (roomCode) socket.to(roomCode).emit('offer',  d); });
