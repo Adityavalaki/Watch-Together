@@ -519,7 +519,33 @@
 
 <div id="toast"></div>
 
-<script src="/socket.io/socket.io.js"></script>
+<script src="/socket.io/socket.io.js">
+ // When room page loads, reclaim our slot using sessionStorage
+socket.on('connect', () => {
+  const savedRoom = sessionStorage.getItem('wt_room');
+  const savedRole = sessionStorage.getItem('wt_role');
+  if (savedRoom && savedRole) {
+    if (savedRole === 'host') {
+      socket.emit('create-room'); // server returns existing room if code matches
+    } else {
+      socket.emit('rejoin-room', savedRoom);
+    }
+  }
+});
+
+socket.on('room-rejoined', (code) => {
+  document.getElementById('roomCode').textContent  = code;
+  document.getElementById('shareCode').textContent = code;
+  roomId = code;
+  role   = sessionStorage.getItem('wt_role');
+});
+
+socket.on('peer-reconnected', () => {
+  systemMsg('Partner reconnected');
+  setStatus('connected');
+  updatePartnerUI(true);
+});
+</script>
 <script src="/js/app.js"></script>
 </body>
 </html>
