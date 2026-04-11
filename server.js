@@ -56,13 +56,25 @@ io.on('connection', (socket) => {
   socket.on('ice',    (d) => { if (roomCode) socket.to(roomCode).emit('ice',    d); });
 
   socket.on('disconnect', () => {
-    if (!roomCode) return;
+  if (!roomCode) return;
+  const room = rooms.get(roomCode);
+  if (!room) return;
+
+  // Give 10 seconds grace period before destroying room
+  // handles brief Render connection drops
+  setTimeout(() => {
+    const current = rooms.get(roomCode);
+    if (!current) return;
     rooms.delete(roomCode);
     io.to(roomCode).emit('peer-disconnected');
     console.log(`[-] Room ${roomCode} closed`);
-  });
+  }, 10000);
 });
-
+});
+// Keep Render from sleeping mid-session
+setInterval(() => {
+  io.emit('ping-keep-alive');
+}, 25000);
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () =>
   console.log(`\n  WatchTogether  →  http://localhost:${PORT}\n`)
