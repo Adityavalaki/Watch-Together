@@ -207,7 +207,6 @@ function joinRoom() {
   document.getElementById('btnJoin').textContent = '...';
   socket.emit('join-room', code);
 }
-
 socket.on('room-created', code => {
   sessionStorage.setItem('wt_role', 'host');
   sessionStorage.setItem('wt_room', code);
